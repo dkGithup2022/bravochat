@@ -1,0 +1,17 @@
+spring:
+  profiles:
+    active: local
+  application:
+    name: chatbot-bravo-be
+  data:
+    jdbc:
+      repositories:
+        enabled: true
+  ai:
+    openai:
+      api-key: ${OPENAI_KEY:}
+    retry:
+      max-attempts: 3
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html

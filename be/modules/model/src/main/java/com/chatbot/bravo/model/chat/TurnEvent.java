@@ -1,0 +1,47 @@
+package com.chatbot.bravo.model.chat;
+
+import com.chatbot.bravo.model.audit.AuditFields;
+import lombok.Value;
+
+import java.time.Instant;
+
+/**
+ * Turn 내부에서 발생한 메시지/툴 실행 기록. sequence 순서로 append (수정하지 않음).
+ * 팩토리로 type별 필드 사용규약(도메인 스펙 §4)을 캡슐화한다.
+ */
+@Value
+public class TurnEvent implements AuditFields {
+    Long eventId;
+    Long turnId;
+    int sequence;
+    TurnEventType type;
+    String content;
+    String toolName;
+    String toolCallId;
+    Instant createdAt;
+    Instant updatedAt;
+
+    /** 사용자 입력. toolName/toolCallId 미사용. */
+    public static TurnEvent userMessage(Long turnId, int sequence, String content) {
+        Instant now = Instant.now();
+        return new TurnEvent(null, turnId, sequence, TurnEventType.USER_MESSAGE, content, null, null, now, now);
+    }
+
+    /** 최종 응답. toolName/toolCallId 미사용. */
+    public static TurnEvent assistantMessage(Long turnId, int sequence, String content) {
+        Instant now = Instant.now();
+        return new TurnEvent(null, turnId, sequence, TurnEventType.ASSISTANT_MESSAGE, content, null, null, now, now);
+    }
+
+    /** LLM 툴 호출 요청. content=툴 인자(JSON). */
+    public static TurnEvent toolCall(Long turnId, int sequence, String toolName, String toolCallId, String content) {
+        Instant now = Instant.now();
+        return new TurnEvent(null, turnId, sequence, TurnEventType.TOOL_CALL, content, toolName, toolCallId, now, now);
+    }
+
+    /** 툴 실행 결과. 대응 TOOL_CALL과 동일 toolCallId, content=결과(JSON). */
+    public static TurnEvent toolResult(Long turnId, int sequence, String toolCallId, String content) {
+        Instant now = Instant.now();
+        return new TurnEvent(null, turnId, sequence, TurnEventType.TOOL_RESULT, content, null, toolCallId, now, now);
+    }
+}

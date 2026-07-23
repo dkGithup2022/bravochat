@@ -1,0 +1,12 @@
+.gradle/
+build/
+out/
+!gradle/wrapper/gradle-wrapper.jar
+.idea/
+*.iml
+.vscode/
+data/
+*.mv.db
+*.trace.db
+.DS_Store
+*.log

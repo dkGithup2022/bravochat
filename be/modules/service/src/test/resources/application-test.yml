@@ -1,0 +1,14 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:test;MODE=MySQL;DB_CLOSE_DELAY=-1;CASE_INSENSITIVE_IDENTIFIERS=TRUE;DATABASE_TO_LOWER=TRUE
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  sql:
+    init:
+      mode: always
+      schema-locations: classpath:local_h2/schema.sql
+  data:
+    jdbc:
+      repositories:
+        enabled: true
