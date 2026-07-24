@@ -31,9 +31,9 @@ class TurnEventJdbcRepository implements TurnEventRepository {
     }
 
     @Override
-    public List<TurnEvent> findAllByTurnIdOrderBySequence(Long turnId) {
+    public List<TurnEvent> findAllByTurnIdInOrder(Long turnId) {
         List<TurnEvent> events = new ArrayList<>();
-        entityRepository.findByTurnIdAndIsDeletedFalseOrderBySeqAsc(turnId)
+        entityRepository.findByTurnIdAndIsDeletedFalseOrderByIdAsc(turnId)
                 .forEach(e -> events.add(e.toDomain()));
         return events;
     }

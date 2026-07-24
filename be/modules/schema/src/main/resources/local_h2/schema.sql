@@ -44,10 +44,10 @@ CREATE TABLE IF NOT EXISTS turns (
 );
 CREATE INDEX IF NOT EXISTS idx_turns_user_status_created ON turns(user_id, status, created_at DESC, id DESC);
 
+-- 이벤트 순서는 id(AUTO_INCREMENT) 오름차순으로 보장 — 별도 sequence 컬럼 없음.
 CREATE TABLE IF NOT EXISTS turn_events (
     id           BIGINT AUTO_INCREMENT PRIMARY KEY,
     turn_id      BIGINT      NOT NULL,
-    seq          INT         NOT NULL,
     type         VARCHAR(30) NOT NULL,
     content      CLOB        NOT NULL,
     tool_name    VARCHAR(100),
@@ -55,8 +55,7 @@ CREATE TABLE IF NOT EXISTS turn_events (
     is_deleted   BOOLEAN     NOT NULL DEFAULT FALSE,
     deleted_at   DATETIME(6),
     created_at   DATETIME(6) NOT NULL,
-    updated_at   DATETIME(6) NOT NULL,
-    CONSTRAINT uk_turn_events_turn_seq UNIQUE (turn_id, seq)
+    updated_at   DATETIME(6) NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_turn_events_turn_type ON turn_events(turn_id, type);
 CREATE INDEX IF NOT EXISTS idx_turn_events_tool_call ON turn_events(tool_call_id);

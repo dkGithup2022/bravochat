@@ -19,7 +19,7 @@ public class SendMessageRequest {
     @Schema(description = "사용자 입력 텍스트", example = "안녕하세요")
     private String message;
 
-    public SendMessageCommand toCommand(String sessionKey) {
-        return new SendMessageCommand(sessionKey, message);
+    public SendMessageCommand toCommand(Long userId) {
+        return new SendMessageCommand(userId, message);
     }
 }

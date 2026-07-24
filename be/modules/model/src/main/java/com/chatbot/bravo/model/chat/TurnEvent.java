@@ -6,14 +6,13 @@ import lombok.Value;
 import java.time.Instant;
 
 /**
- * Turn 내부에서 발생한 메시지/툴 실행 기록. sequence 순서로 append (수정하지 않음).
+ * Turn 내부에서 발생한 메시지/툴 실행 기록. append 순서 = id(AUTO_INCREMENT) 오름차순으로 보장.
  * 팩토리로 type별 필드 사용규약(도메인 스펙 §4)을 캡슐화한다.
  */
 @Value
 public class TurnEvent implements AuditFields {
     Long eventId;
     Long turnId;
-    int sequence;
     TurnEventType type;
     String content;
     String toolName;
@@ -22,26 +21,26 @@ public class TurnEvent implements AuditFields {
     Instant updatedAt;
 
     /** 사용자 입력. toolName/toolCallId 미사용. */
-    public static TurnEvent userMessage(Long turnId, int sequence, String content) {
+    public static TurnEvent userMessage(Long turnId, String content) {
         Instant now = Instant.now();
-        return new TurnEvent(null, turnId, sequence, TurnEventType.USER_MESSAGE, content, null, null, now, now);
+        return new TurnEvent(null, turnId, TurnEventType.USER_MESSAGE, content, null, null, now, now);
     }
 
     /** 최종 응답. toolName/toolCallId 미사용. */
-    public static TurnEvent assistantMessage(Long turnId, int sequence, String content) {
+    public static TurnEvent assistantMessage(Long turnId, String content) {
         Instant now = Instant.now();
-        return new TurnEvent(null, turnId, sequence, TurnEventType.ASSISTANT_MESSAGE, content, null, null, now, now);
+        return new TurnEvent(null, turnId, TurnEventType.ASSISTANT_MESSAGE, content, null, null, now, now);
     }
 
     /** LLM 툴 호출 요청. content=툴 인자(JSON). */
-    public static TurnEvent toolCall(Long turnId, int sequence, String toolName, String toolCallId, String content) {
+    public static TurnEvent toolCall(Long turnId, String toolName, String toolCallId, String content) {
         Instant now = Instant.now();
-        return new TurnEvent(null, turnId, sequence, TurnEventType.TOOL_CALL, content, toolName, toolCallId, now, now);
+        return new TurnEvent(null, turnId, TurnEventType.TOOL_CALL, content, toolName, toolCallId, now, now);
     }
 
     /** 툴 실행 결과. 대응 TOOL_CALL과 동일 toolCallId, content=결과(JSON). */
-    public static TurnEvent toolResult(Long turnId, int sequence, String toolCallId, String content) {
+    public static TurnEvent toolResult(Long turnId, String toolCallId, String content) {
         Instant now = Instant.now();
-        return new TurnEvent(null, turnId, sequence, TurnEventType.TOOL_RESULT, content, null, toolCallId, now, now);
+        return new TurnEvent(null, turnId, TurnEventType.TOOL_RESULT, content, null, toolCallId, now, now);
     }
 }

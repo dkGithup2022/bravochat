@@ -1,16 +1,17 @@
 package com.chatbot.bravo.infrastructure.llm;
 
+import com.chatbot.bravo.model.llm.LlmAction;
 import com.chatbot.bravo.model.llm.LlmMessage;
-import com.chatbot.bravo.model.llm.LlmResponse;
 
 import java.util.List;
 
 /**
  * LLM 호출 포트 (provider 중립). 구현은 llm-openai 모듈의 OpenAiLlmClient.
- * MVP: 도구 없이 systemPrompt + messages로 단발 호출.
- * Phase 2: tools 파라미터 + 응답의 toolCalls 로 확장.
+ *
+ * <p>매 호출은 구조화 응답 {@link LlmAction}(FINAL | TOOL_CALL)으로 파싱된다 —
+ * 툴 루프의 한 스텝. systemPrompt에 응답 JSON 형식·툴 목록이 들어간다.
  */
 public interface LlmClient {
 
-    LlmResponse call(String systemPrompt, List<LlmMessage> messages);
+    LlmAction call(String systemPrompt, List<LlmMessage> messages);
 }

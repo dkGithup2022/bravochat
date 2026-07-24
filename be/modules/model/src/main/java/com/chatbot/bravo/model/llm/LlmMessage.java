@@ -14,4 +14,9 @@ public record LlmMessage(
     public static LlmMessage assistant(String content) {
         return new LlmMessage(LlmRole.ASSISTANT, content);
     }
+
+    /** 툴 실행 교환 블록(## tool start … ## tool end). */
+    public static LlmMessage tool(String content) {
+        return new LlmMessage(LlmRole.TOOL, content);
+    }
 }

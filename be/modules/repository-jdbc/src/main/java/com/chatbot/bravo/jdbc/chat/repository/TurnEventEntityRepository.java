@@ -8,5 +8,5 @@ import java.util.List;
 @Repository
 interface TurnEventEntityRepository extends CrudRepository<TurnEventEntity, Long> {
 
-    List<TurnEventEntity> findByTurnIdAndIsDeletedFalseOrderBySeqAsc(Long turnId);
+    List<TurnEventEntity> findByTurnIdAndIsDeletedFalseOrderByIdAsc(Long turnId);
 }

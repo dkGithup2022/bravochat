@@ -1,7 +1,7 @@
 package com.chatbot.bravo.api.auth;
 
 import com.chatbot.bravo.api.auth.dto.LoginRequest;
-import com.chatbot.bravo.exception.auth.InvalidSessionException;
+import com.chatbot.bravo.model.auth.LoginSession;
 import com.chatbot.bravo.service.auth.LoginUsecase;
 import com.chatbot.bravo.service.auth.LogoutUsecase;
 import com.chatbot.bravo.service.auth.dto.LoginResult;
@@ -16,7 +16,6 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -40,24 +39,11 @@ public class AuthApiController {
                 .build();
     }
 
-    @Operation(summary = "로그아웃 — Authorization 헤더의 세션 키를 만료시킨다")
+    @Operation(summary = "로그아웃 — 인증된 세션을 만료시킨다")
     @DeleteMapping("/auth/session")
-    public ResponseEntity<Void> logout(
-            @RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization) {
-        String sessionKey = extractSessionKey(authorization);
+    public ResponseEntity<Void> logout(@LoginUser LoginSession loginSession) {
         log.info("DELETE /auth/session");
-        logoutUsecase.logout(new LogoutCommand(sessionKey));
+        logoutUsecase.logout(new LogoutCommand(loginSession.getSessionKey()));
         return ResponseEntity.noContent().build();
-    }
-
-    private String extractSessionKey(String authorization) {
-        if (authorization == null || !authorization.startsWith(BEARER_PREFIX)) {
-            throw new InvalidSessionException("missing or malformed Authorization header");
-        }
-        String sessionKey = authorization.substring(BEARER_PREFIX.length()).trim();
-        if (sessionKey.isEmpty()) {
-            throw new InvalidSessionException("empty session key");
-        }
-        return sessionKey;
     }
 }

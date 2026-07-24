@@ -12,3 +12,8 @@ spring:
     jdbc:
       repositories:
         enabled: true
+  # 시나리오 테스트는 LlmClient를 @MockBean으로 대체하므로 실제 키가 필요 없다.
+  # 다만 Spring AI OpenAI 자동구성(ChatModel 빈)이 컨텍스트 부팅 시 키 존재를 요구하므로 더미 값을 준다.
+  ai:
+    openai:
+      api-key: test-dummy-key

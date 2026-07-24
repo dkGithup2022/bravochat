@@ -1,8 +1,9 @@
 package com.chatbot.bravo.llm.openai;
 
 import com.chatbot.bravo.infrastructure.llm.LlmClient;
+import com.chatbot.bravo.model.llm.LlmAction;
 import com.chatbot.bravo.model.llm.LlmMessage;
-import com.chatbot.bravo.model.llm.LlmResponse;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
@@ -17,8 +18,9 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * LlmClient 의 OpenAI(Spring AI ChatModel) 구현. MVP: 도구 없이 systemPrompt + messages 단발 호출.
- * Phase 2: OpenAiChatOptions 에 toolCallbacks 추가 + 응답 툴 콜 파싱.
+ * LlmClient 의 OpenAI(Spring AI ChatModel) 구현.
+ * 메시지 리스트로 호출하고, 응답 텍스트를 {@link LlmAction}(FINAL | TOOL_CALL) JSON으로 파싱한다.
+ * 파싱 실패 시(모델이 형식 안 지킴) 원문을 FINAL 답변으로 폴백한다.
  */
 @Slf4j
 @Component
@@ -27,19 +29,21 @@ public class OpenAiLlmClient implements LlmClient {
     private static final String MODEL = "gpt-4.1-mini";
 
     private final ChatModel chatModel;
+    private final ObjectMapper objectMapper;
 
-    public OpenAiLlmClient(ChatModel chatModel) {
+    public OpenAiLlmClient(ChatModel chatModel, ObjectMapper objectMapper) {
         this.chatModel = chatModel;
+        this.objectMapper = objectMapper;
     }
 
     @Override
-    public LlmResponse call(String systemPrompt, List<LlmMessage> messages) {
+    public LlmAction call(String systemPrompt, List<LlmMessage> messages) {
         List<Message> springMessages = new ArrayList<>();
         springMessages.add(new SystemMessage(systemPrompt));
         for (LlmMessage m : messages) {
             springMessages.add(switch (m.role()) {
                 case ASSISTANT -> new AssistantMessage(m.content());
-                case USER -> new UserMessage(m.content());
+                case USER, TOOL -> new UserMessage(m.content());  // 프롬프트 기반 — TOOL도 user로 표현
             });
         }
 
@@ -52,6 +56,17 @@ public class OpenAiLlmClient implements LlmClient {
                 .getResult().getOutput().getText();
         log.info("[OpenAI] 응답 수신: length={}", text == null ? 0 : text.length());
 
-        return LlmResponse.finalText(text);
+        return parse(text);
+    }
+
+    private LlmAction parse(String rawText) {
+        String clean = CleanJson.cleanJsonString(rawText);
+        try {
+            return objectMapper.readValue(clean, LlmAction.class);
+        } catch (Exception e) {
+            // 모델이 JSON 형식을 안 지킨 경우 → 원문을 최종 답변으로 폴백
+            log.warn("[OpenAI] LlmAction 파싱 실패 → FINAL 폴백: {}", e.getMessage());
+            return LlmAction.finalAnswer(rawText);
+        }
     }
 }
