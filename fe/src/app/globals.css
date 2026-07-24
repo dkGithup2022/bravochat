@@ -1,0 +1,110 @@
+@import "tailwindcss";
+
+/*
+ * Bravo Chat — 확정 테마 (GitHub 라이트 모노크롬)
+ * 생성 방식: dk-theme-init 추출 모드. 5개 변형 생성/선택은 건너뜀
+ *   — 시안 선택이 이미 끝났으므로(Handoff = "현재 시안 기준 추출"),
+ *     기존 자료(Bravo Handoff §2 · Bravo Chat 시안)에서 값만 추출해 매핑.
+ * 모드: Light 단일 (시안이 라이트 톤).
+ */
+
+:root {
+  /* Background layers — 밝음 → 어두움 */
+  --bg-primary: #ffffff; /* 화면 배경 */
+  --bg-secondary: #f6f8fa; /* 봇 버블 · 입력 필드 (Bravo surface) */
+  --bg-tertiary: #eaecef; /* 내부 면 (Bravo hairline 계열) */
+  --bg-elevated: #ffffff; /* 카드 · 모달 (흰 배경 + shadow) */
+  --bg-surface: #e8e9ec; /* 가장 어두운 면 · 바깥 캔버스 (Chat 시안) */
+
+  /* Accent palette — brand #1a6dff */
+  --accent-primary: #1a6dff; /* 마스코트 · 강조 */
+  --accent-secondary: #0969da; /* 링크 톤 */
+  --accent-muted: #6e8bc0; /* 뮤트 강조 */
+  --accent-glow: rgba(26, 109, 255, 0.15);
+  --accent-glow-strong: rgba(26, 109, 255, 0.25);
+
+  /* Text — 어두움 → 밝음 */
+  --text-primary: #1f2328; /* 본문 · 유저 버블 (Bravo ink) */
+  --text-secondary: #656d76; /* 보조 (Bravo muted) */
+  --text-tertiary: #8b949e; /* 비활성 · 플레이스홀더 (Bravo faint) */
+  --text-accent: #1a6dff;
+
+  /* Borders */
+  --border-subtle: #eaecef; /* 내부 구분선 (Bravo hairline) */
+  --border-default: #d0d7de; /* 기본 보더 (Bravo line) */
+  --border-hover: #1f2328; /* 위젯 hover 보더 (Chat 시안) */
+
+  /* Shadows — 라이트: 낮은 alpha */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.08);
+  --shadow-lg: 0 24px 48px -16px rgba(20, 22, 28, 0.18);
+  --shadow-glow: 0 0 0 3px rgba(26, 109, 255, 0.08);
+
+  --background: var(--bg-primary);
+  --foreground: var(--text-primary);
+}
+
+/*
+ * Bravo 시맨틱 유틸 이름 (Handoff §4 컴포넌트 명세용) → Tailwind v4.
+ * text-ink · bg-surface · border-line · text-brand · rounded-bubble 등으로 사용.
+ */
+@theme {
+  --color-ink: #1f2328;
+  --color-muted: #656d76;
+  --color-faint: #8b949e;
+  --color-line: #d0d7de;
+  --color-hairline: #eaecef;
+  --color-surface: #f6f8fa; /* 봇 버블 · 입력 */
+  --color-canvas: #e8e9ec; /* 바깥 캔버스 */
+  --color-brand: #1a6dff;
+
+  --font-sans: var(--font-noto-sans), sans-serif;
+  --font-mono: var(--font-space-mono), monospace;
+
+  --radius-bubble: 16px;
+  --radius-card: 12px;
+  --radius-field: 14px;
+}
+
+/* 21변수 스키마 → Tailwind 유틸 (design-lab · dk-spec-generator 호환) */
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-accent: var(--accent-primary);
+  --color-accent-secondary: var(--accent-secondary);
+  --color-accent-muted: var(--accent-muted);
+  --color-elevated: var(--bg-elevated);
+  --color-text-secondary: var(--text-secondary);
+  --color-text-tertiary: var(--text-tertiary);
+}
+
+body {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* === 애니메이션 (Bravo Chat 시안에서 추출) === */
+@keyframes bob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+.animate-bob {
+  animation: bob 4s ease-in-out infinite;
+}
+
+@keyframes typing {
+  0%, 60%, 100% { opacity: 0.25; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-3px); }
+}
+.animate-typing {
+  animation: typing 1.2s infinite;
+}
+
+/* === 스크롤바 (모노크롬 톤) === */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-default); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-tertiary); }
