@@ -14,9 +14,8 @@ import com.chatbot.bravo.model.llm.LlmRole;
 import com.chatbot.bravo.model.llm.ToolInvocation;
 import com.chatbot.bravo.service.chat.agent.memory.MemoryManager;
 import com.chatbot.bravo.service.chat.agent.systemprompt.ChatSystemPromptProvider;
-import com.chatbot.bravo.service.chat.agent.tool.EnabledToolsResolver;
 import com.chatbot.bravo.service.chat.agent.tool.ToolExecutor;
-import com.chatbot.bravo.service.chat.agent.tool.ToolOutcome;
+import com.chatbot.bravo.service.chat.agent.tool.ToolResponse;
 import com.chatbot.bravo.service.chat.dto.SendMessageCommand;
 import com.chatbot.bravo.service.chat.dto.SendMessageResult;
 import org.junit.jupiter.api.DisplayName;
@@ -61,7 +60,6 @@ class DefaultSendMessageUsecaseTest {
     @Mock private LlmClient llmClient;
     @Mock private ChatSystemPromptProvider systemPromptProvider;
     @Mock private TurnContextInjector turnContextInjector;
-    @Mock private EnabledToolsResolver enabledToolsResolver;
     @Mock private ToolExecutor toolExecutor;
 
     @InjectMocks
@@ -73,9 +71,8 @@ class DefaultSendMessageUsecaseTest {
     private void commonStubs() {
         when(turnRepository.save(any(Turn.class))).thenReturn(processingTurn());
         when(turnEventRepository.append(any(TurnEvent.class))).thenAnswer(i -> i.getArgument(0));
-        when(systemPromptProvider.build(any())).thenReturn("SYSTEM_PROMPT");
+        when(systemPromptProvider.build()).thenReturn("SYSTEM_PROMPT");
         when(turnContextInjector.buildTurnContext(any())).thenReturn("<ctx>");
-        when(enabledToolsResolver.resolve(anyLong())).thenReturn(Set.of());
     }
 
     private Turn processingTurn() {
@@ -172,7 +169,7 @@ class DefaultSendMessageUsecaseTest {
                     ? LlmAction.toolCall(call)
                     : LlmAction.finalAnswer("서울은 맑고 25도예요");
         });
-        when(toolExecutor.execute(any(), any())).thenReturn(ToolOutcome.ok("날씨: 25도"));
+        when(toolExecutor.execute(any(), any())).thenReturn(ToolResponse.ok("날씨: 25도"));
 
         // when
         usecase.sendMessage(new SendMessageCommand(USER_ID, "오늘 서울 날씨"));
@@ -205,7 +202,10 @@ class DefaultSendMessageUsecaseTest {
         assertThat(events.get(1).getType()).isEqualTo(TurnEventType.TOOL_CALL);
         assertThat(events.get(1).getToolName()).isEqualTo("get_weather");
         assertThat(events.get(1).getContent()).isEqualTo("{city=서울}");        // 저장된 툴 인자
-        assertEvent(events.get(2), TurnEventType.TOOL_RESULT, "날씨: 25도");    // 툴이 남긴 결과
+        assertEvent(events.get(2), TurnEventType.TOOL_RESULT, "날씨: 25도");    // 툴이 남긴 기록(turnMemo)
+        // tool_call_id는 서버 발급 — TOOL_CALL/TOOL_RESULT가 같은 id로 짝지어진다
+        assertThat(events.get(1).getToolCallId()).isNotBlank();
+        assertThat(events.get(2).getToolCallId()).isEqualTo(events.get(1).getToolCallId());
         assertEvent(events.get(3), TurnEventType.ASSISTANT_MESSAGE, "서울은 맑고 25도예요");
         assertThat(events).allSatisfy(e -> assertThat(e.getTurnId()).isEqualTo(100L));
         assertTurnLifecycle(TurnStatus.COMPLETED);
@@ -242,7 +242,7 @@ class DefaultSendMessageUsecaseTest {
         when(memoryManager.recentTurns(USER_ID)).thenReturn(List.of());
         when(llmClient.call(anyString(), anyList()))
                 .thenReturn(LlmAction.toolCall(new ToolInvocation("loop_tool", Map.of())));
-        when(toolExecutor.execute(any(), any())).thenReturn(ToolOutcome.ok("again"));
+        when(toolExecutor.execute(any(), any())).thenReturn(ToolResponse.ok("again"));
 
         // when / then
         assertThatThrownBy(() -> usecase.sendMessage(new SendMessageCommand(USER_ID, "안녕")))

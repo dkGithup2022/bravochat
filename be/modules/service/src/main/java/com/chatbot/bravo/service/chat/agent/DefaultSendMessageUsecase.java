@@ -14,10 +14,9 @@ import com.chatbot.bravo.service.chat.dto.SendMessageCommand;
 import com.chatbot.bravo.service.chat.dto.SendMessageResult;
 import com.chatbot.bravo.service.chat.agent.memory.MemoryManager;
 import com.chatbot.bravo.service.chat.agent.systemprompt.ChatSystemPromptProvider;
-import com.chatbot.bravo.service.chat.agent.tool.EnabledToolsResolver;
 import com.chatbot.bravo.service.chat.agent.tool.ToolContext;
 import com.chatbot.bravo.service.chat.agent.tool.ToolExecutor;
-import com.chatbot.bravo.service.chat.agent.tool.ToolOutcome;
+import com.chatbot.bravo.service.chat.agent.tool.ToolResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -25,7 +24,7 @@ import org.springframework.stereotype.Service;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
+import java.util.UUID;
 
 /**
  * SendMessage 오케스트레이션 — 프롬프트 기반 툴 루프.
@@ -35,8 +34,8 @@ import java.util.Set;
  * FINAL이면 종료(①), TOOL_CALL이면 툴 실행 후 결과를 messages에 append하고 재호출.
  * 종료는 ①모델 FINAL / ②에러(fail) / ③MAX_STEPS 가드.
  *
- * <p>현재 활성 툴이 없어(EnabledToolsResolver가 빈 집합) 모델은 항상 FINAL → 루프 1바퀴.
- * 툴 브랜치는 도달하지 않는다(툴 구현 시 활성화).
+ * <p>활성 툴은 EnabledToolsResolver가 결정(등록된 ToolHandler 전부). 등록 툴이 없으면
+ * 모델은 항상 FINAL → 루프 1바퀴. 툴은 블랙박스 — 루프는 name 라우팅과 결과 기록만 안다.
  *
  * <p>주의: 메서드에 @Transactional을 걸지 않는다 — LLM 호출(느린 외부 I/O) 동안 DB 커넥션을
  * 잡지 않기 위해. 각 repository 저장은 개별 트랜잭션으로 커밋된다.
@@ -54,7 +53,6 @@ public class DefaultSendMessageUsecase implements SendMessageUsecase {
     private final LlmClient llmClient;
     private final ChatSystemPromptProvider systemPromptProvider;
     private final TurnContextInjector turnContextInjector;
-    private final EnabledToolsResolver enabledToolsResolver;
     private final ToolExecutor toolExecutor;
 
     @Override
@@ -94,8 +92,7 @@ public class DefaultSendMessageUsecase implements SendMessageUsecase {
      * 종료: ①FINAL / ②에러(failTurn) / ③MAX_STEPS 초과.
      */
     private String runLoop(Turn turn, Long userId, List<LlmMessage> messages) {
-        Set<String> enabledTools = enabledToolsResolver.resolve(userId);   // 현재는 빈 집합
-        String systemPrompt = systemPromptProvider.build(enabledTools);    // 조립은 전적으로 provider가
+        String systemPrompt = systemPromptProvider.build();   // 조립은 전적으로 provider가 (툴 목록 포함)
 
         int steps = 0;
         while (true) {
@@ -109,7 +106,6 @@ public class DefaultSendMessageUsecase implements SendMessageUsecase {
                 return action.content();                                   // ① 종료
             }
 
-            // 툴 브랜치 — enabledTools가 비어있어 현재 도달하지 않음. 툴 구현 시 활성화.
             applyToolCall(turn, userId, messages, action.tool());
         }
     }
@@ -124,23 +120,31 @@ public class DefaultSendMessageUsecase implements SendMessageUsecase {
         }
     }
 
-    /** 툴 호출 요청을 실행하고 결과를 이벤트로 저장 + messages에 마커 블록으로 append. */
+    /**
+     * 툴 호출 요청을 실행하고 결과를 이벤트로 저장 + messages에 마커 블록으로 append.
+     * tool_call_id는 서버가 발급(프롬프트 기반 — 모델이 안 줌) — TOOL_CALL/TOOL_RESULT 짝 추적용.
+     * 기록은 turnMemo, 모델 되먹임은 response — 분리는 툴이 정한다.
+     */
     private void applyToolCall(Turn turn, Long userId, List<LlmMessage> messages, ToolInvocation call) {
+        String callId = UUID.randomUUID().toString();
         turnEventRepository.append(
-                TurnEvent.toolCall(turn.getTurnId(), call.name(), null, String.valueOf(call.arguments())));
+                TurnEvent.toolCall(turn.getTurnId(), call.name(), callId, String.valueOf(call.arguments())));
 
-        ToolOutcome outcome = toolExecutor.execute(call, new ToolContext(userId, messages));
+        ToolResponse response = toolExecutor.execute(
+                call, new ToolContext(userId, turn.getTurnId(), messages));
 
         turnEventRepository.append(
-                TurnEvent.toolResult(turn.getTurnId(), null, outcome.contextToLeave()));
-        messages.add(LlmMessage.tool(renderToolBlock(call, outcome)));     // 판단 근거로 남김
+                TurnEvent.toolResult(turn.getTurnId(), callId, response.turnMemo()));
+
+        messages.add(LlmMessage.tool(renderToolBlock(call, response)));    // 판단 근거로 남김
     }
 
-    /** 툴 교환을 messages에 남길 표현 — 마커로 논의 대상만 감싼다. contextToLeave는 툴이 정한 내용. */
-    private String renderToolBlock(ToolInvocation call, ToolOutcome outcome) {
+    /** 툴 교환을 messages에 남길 표현 — 마커로 논의 대상만 감싼다. 실패는 ERROR 표시로 자가수정 유도. */
+    private String renderToolBlock(ToolInvocation call, ToolResponse response) {
+        String body = response.success() ? response.response() : "ERROR: " + response.response();
         return "## tool start\n"
                 + call.name() + "(" + call.arguments() + ")\n"
-                + outcome.contextToLeave() + "\n"
+                + body + "\n"
                 + "## tool end";
     }
 
