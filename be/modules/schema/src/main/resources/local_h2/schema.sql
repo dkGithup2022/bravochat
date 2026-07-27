@@ -59,3 +59,22 @@ CREATE TABLE IF NOT EXISTS turn_events (
 );
 CREATE INDEX IF NOT EXISTS idx_turn_events_turn_type ON turn_events(turn_id, type);
 CREATE INDEX IF NOT EXISTS idx_turn_events_tool_call ON turn_events(tool_call_id);
+
+-- === Schedule ===
+-- 챗 툴(schedule_add)로만 생성 — turn_id 로 생성 출처 턴 추적.
+-- done_at NULL = 미완료 (별도 boolean 없음)
+CREATE TABLE IF NOT EXISTS schedules (
+    id            BIGINT AUTO_INCREMENT PRIMARY KEY,
+    user_id       BIGINT       NOT NULL,
+    turn_id       BIGINT       NOT NULL,
+    title         VARCHAR(200) NOT NULL,
+    content       TEXT,
+    schedule_type VARCHAR(20)  NOT NULL,
+    scheduled_at  DATETIME(6)  NOT NULL,
+    done_at       DATETIME(6),
+    is_deleted    BOOLEAN      NOT NULL DEFAULT FALSE,
+    deleted_at    DATETIME(6),
+    created_at    DATETIME(6)  NOT NULL,
+    updated_at    DATETIME(6)  NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_schedules_user_scheduled ON schedules(user_id, scheduled_at);

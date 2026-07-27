@@ -39,3 +39,18 @@
 - 팩토리(필드 사용규약 캡슐화): `userMessage/assistantMessage(turnId,seq,content)`, `toolCall(turnId,seq,toolName,toolCallId,content)`, `toolResult(turnId,seq,toolCallId,content)`
 - `TurnEventIdentity`(eventId), `TurnEventType` enum: USER_MESSAGE/TOOL_CALL/TOOL_RESULT/ASSISTANT_MESSAGE
 - 도메인 field `sequence` ↔ 엔티티/컬럼 `seq`
+
+## schedule (com.chatbot.bravo.model.schedule)
+
+### Schedule (@Value, AuditFields)
+- 필드: `Long scheduleId`, `Long userId`, `Long turnId`(생성 출처 턴), `String title`, `String content`(nullable), `ScheduleType scheduleType`, `Instant scheduledAt`(UTC), `Instant doneAt`(nullable, null=미완료), createdAt, updatedAt
+- 팩토리: `create(userId, turnId, title, content, scheduleType, scheduledAt)` — 미완료로 생성
+- 상태변경: `done()` — doneAt 세팅한 새 인스턴스 / 판정: `isDone()`
+- Read 모델 없음 — 단일 테이블 전량 반환, Schedule이 읽기/쓰기 겸용 (조인 프로젝션 필요 시 분리)
+
+### ScheduleIdentity (@Value)
+- `Long scheduleId`
+
+### ScheduleType (enum)
+- 값: HEALTH / PERSONAL / WORK / ETC
+- `fromOrEtc(String)` — 대소문자 무관, 미스매치·null은 ETC 흡수 (LLM 툴 인자 안전망을 enum이 소유)

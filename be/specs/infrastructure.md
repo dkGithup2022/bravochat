@@ -29,3 +29,10 @@
 - `List<TurnEvent> findAllByTurnIdOrderBySequence(Long turnId)` — is_deleted=false, seq 오름차순
 
 > 구현체(TurnJdbcRepository/TurnEventJdbcRepository)는 준비됨. 현재 소비처는 SendMessage 오케스트레이션(스텁)이라 미사용 — 실제 저장/조회는 오케스트레이션 구현 시 검증.
+
+## schedule (com.chatbot.bravo.infrastructure.schedule.repository)
+
+### ScheduleRepository
+- `Schedule save(Schedule)` — 신규 생성(id=null) + 상태변경(done) 공용
+- `List<Schedule> findAllByUserIdInPeriod(Long userId, Instant from, Instant to)` — scheduled_at ASC, [from, to) 범위. from/to 필수(기본값 해석은 호출자). limit 없음 — 노출 제한은 호출자가
+- `Optional<Schedule> findByIdAndUserId(Long scheduleId, Long userId)` — userId 스코프 단건. LLM 툴 인자 scheduleId의 소유권 검증을 쿼리 레벨에서 강제
