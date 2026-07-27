@@ -6,6 +6,7 @@ import com.chatbot.bravo.api.chat.dto.SendMessageRequest;
 import com.chatbot.bravo.api.chat.dto.SendMessageResponse;
 import com.chatbot.bravo.model.auth.LoginSession;
 import com.chatbot.bravo.service.chat.GetRecentTurnsUsecase;
+import com.chatbot.bravo.service.chat.GetTranscriptUsecase;
 import com.chatbot.bravo.service.chat.SendMessageUsecase;
 import com.chatbot.bravo.service.chat.dto.GetRecentTurnsQuery;
 import com.chatbot.bravo.service.chat.dto.GetRecentTurnsResult;
@@ -15,6 +16,7 @@ import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -29,6 +31,7 @@ public class ChatApiController {
 
     private final GetRecentTurnsUsecase getRecentTurnsUsecase;
     private final SendMessageUsecase sendMessageUsecase;
+    private final GetTranscriptUsecase getTranscriptUsecase;
 
     @Operation(summary = "대화 요청 — 메시지를 전송하고 최종 응답을 반환. 인증된 세션의 userId로 처리, 최근 20턴을 컨텍스트로 사용.")
     @PostMapping("/chat/turns")
@@ -49,5 +52,12 @@ public class ChatApiController {
         GetRecentTurnsResult result =
                 getRecentTurnsUsecase.getRecentTurns(new GetRecentTurnsQuery(loginSession.getUserId(), size));
         return RecentTurnsResponse.from(result);
+    }
+
+    @Operation(summary = "[디버그] 전체 대화 전문 — 모든 Turn(상태 무관)의 모든 이벤트를 시간순 평문으로 반환.")
+    @GetMapping(value = "/chat/turns/transcript", produces = MediaType.TEXT_PLAIN_VALUE)
+    public String getTranscript(@LoginUser LoginSession loginSession) {
+        log.info("GET /chat/turns/transcript");
+        return getTranscriptUsecase.getTranscript(loginSession.getUserId());
     }
 }
