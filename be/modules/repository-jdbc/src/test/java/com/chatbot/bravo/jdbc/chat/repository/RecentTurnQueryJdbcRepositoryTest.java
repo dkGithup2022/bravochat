@@ -115,6 +115,24 @@ class RecentTurnQueryJdbcRepositoryTest {
     }
 
     @Test
+    @DisplayName("[경계] 20턴 초과 시 최신 20턴만, 오래된→최신 순서로 반환한다")
+    void should_returnLatest20InOrder_when_moreThan20Turns() {
+        for (int i = 1; i <= 25; i++) {
+            completedTurn(1L, "q" + i, "a" + i);
+        }
+
+        List<RecentTurn> result = recentTurnQueryRepository.findRecentCompletedTurns(1L, 20);
+
+        // 최신 20턴(q6~q25)만, 오래된→최신
+        assertThat(result).extracting(RecentTurn::getUserMessage)
+                .containsExactly(java.util.stream.IntStream.rangeClosed(6, 25)
+                        .mapToObj(i -> "q" + i).toArray(String[]::new));
+        assertThat(result).extracting(RecentTurn::getAssistantMessage)
+                .containsExactly(java.util.stream.IntStream.rangeClosed(6, 25)
+                        .mapToObj(i -> "a" + i).toArray(String[]::new));
+    }
+
+    @Test
     @DisplayName("[경계] 다른 유저의 대화는 섞이지 않는다")
     void should_isolateByUser_when_findRecent() {
         completedTurn(1L, "user1 대화", "a");
