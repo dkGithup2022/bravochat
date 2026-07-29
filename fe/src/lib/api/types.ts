@@ -1,5 +1,5 @@
 export interface ProxyRequest {
-  method: "GET" | "POST" | "PUT" | "DELETE";
+  method: "GET" | "POST" | "PATCH" | "DELETE";
   path: string;
   body?: unknown;
   params?: Record<string, string | number | boolean>;

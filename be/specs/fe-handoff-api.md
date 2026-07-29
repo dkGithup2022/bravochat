@@ -46,6 +46,7 @@
 | 400 | `InvalidRecentTurnSizeException` | `size`가 1~20 범위 밖 | size 보정 후 재요청 |
 | 401 | `LoginFailedException` | 로그인 실패 (아이디/비번 불일치) | "아이디 또는 비밀번호가 올바르지 않습니다" |
 | 401 | `InvalidSessionException` | 세션 없음/만료/형식오류 | 로그인 화면으로 |
+| 404 | `ScheduleNotFoundException` | 없는 일정 또는 타 유저 일정 접근 (구분 없음) | "일정을 찾을 수 없습니다" + 목록 새로고침 |
 | 500 | `LlmExecutionException` | LLM 호출/처리 실패 | "응답 생성에 실패했습니다" 재시도 유도 |
 | 500 | `InternalServerError` | 그 외 서버 오류 | 일반 오류 토스트 |
 
@@ -153,6 +154,104 @@
 
 ---
 
+### 2-5. 일정 기간 조회 — `GET /schedules`
+인증 필요. 기간 내 일정을 **최신순(scheduled_at 역순)** 으로 반환.
+
+**Query Param**
+- `from` (optional, `YYYY-MM-DD`): 시작일(포함). 생략 시 **오늘(KST)**
+- `to` (optional, `YYYY-MM-DD`): 종료일(**포함**). 생략 시 from+6일 (총 7일)
+- `size` (optional, default `20`): 최대 건수. 1~100 밖 값은 서버가 범위로 보정 (에러 아님)
+
+**Response** — `200 OK`
+```json
+{
+  "schedules": [
+    {
+      "scheduleId": 3,
+      "title": "돌돌이 미팅",
+      "content": null,
+      "scheduleType": "ETC",
+      "scheduledAt": "2026-07-30T08:00:00Z",
+      "done": false
+    },
+    {
+      "scheduleId": 1,
+      "title": "강남 미팅",
+      "content": "강남역",
+      "scheduleType": "WORK",
+      "scheduledAt": "2026-07-30T06:00:00Z",
+      "done": false
+    }
+  ]
+}
+```
+| 필드 | 타입 | 설명 |
+|---|---|---|
+| `schedules[]` | array | **최신순** (scheduled_at 내림차순) |
+| `schedules[].scheduleId` | number | 일정 ID — **변경(PATCH) 시 새 ID로 바뀜** (아래 2-7 참고) |
+| `schedules[].title` | string | 제목 (최대 200자) |
+| `schedules[].content` | string \| null | 상세 |
+| `schedules[].scheduleType` | string | `HEALTH` \| `PERSONAL` \| `WORK` \| `ETC` |
+| `schedules[].scheduledAt` | string(ISO-8601 UTC) | 일정 시각 — **KST 변환은 FE 책임** |
+| `schedules[].done` | boolean | 완료 여부 |
+
+**에러**: 400 (from/to 날짜 형식 오류), 401 (세션)
+
+> 챗봇으로 만든 일정과 이 API로 만든 일정이 **같은 데이터**다 — 챗에서 등록한 일정이 여기 조회에 그대로 나온다.
+
+---
+
+### 2-6. 일정 등록 — `POST /schedules`
+인증 필요.
+
+**Request**
+```json
+{
+  "title": "강남 미팅",
+  "content": "강남역 2번 출구",
+  "scheduleType": "WORK",
+  "scheduledAt": "2026-07-30T06:00:00Z"
+}
+```
+- `title`: 필수, non-blank, 최대 200자
+- `content`: optional
+- `scheduleType`: optional. `HEALTH|PERSONAL|WORK|ETC` 외 값·생략은 `ETC`로 흡수 (에러 아님)
+- `scheduledAt`: 필수, ISO-8601 UTC instant
+
+**Response** — `201 Created`: 생성된 일정 객체 (2-5와 동일 형태)
+
+**에러**: 400 (`ValidationFailed` — title 누락/200자 초과, scheduledAt 누락), 401 (세션)
+
+---
+
+### 2-7. 일정 변경 — `PATCH /schedules/{scheduleId}`
+인증 필요. **보낸 필드만 변경** (생략/null은 기존 값 유지).
+
+**⚠️ 교체 방식**: 변경은 내부적으로 "새 row 추가 + 기존 row 삭제"로 처리된다.
+**응답의 `scheduleId`가 요청한 ID와 달라진다** — FE는 응답의 새 ID로 로컬 상태를 갱신할 것.
+
+**Request** (모든 필드 optional — 최소 1개 권장)
+```json
+{ "scheduledAt": "2026-07-30T11:00:00Z" }
+```
+
+**Response** — `200 OK`: 변경 후 일정 객체 (**새 `scheduleId`**)
+
+**에러**: 404 `ScheduleNotFoundException` (없는 일정 **또는 타 유저 일정** — 구분 없음), 400, 401
+
+---
+
+### 2-8. 일정 삭제 — `DELETE /schedules/{scheduleId}`
+인증 필요.
+
+**Response** — `204 No Content`
+
+**에러**: 404 `ScheduleNotFoundException` (없는 일정 또는 타 유저 일정), 401
+
+> 소유권 정책: 타 유저의 일정은 403이 아니라 **404** — 존재 자체를 노출하지 않는다.
+
+---
+
 ## 3. 주요 시나리오
 
 ### S1. 최초 진입 → 로그인
@@ -186,6 +285,14 @@
 3. 204(멱등) → 토큰 폐기 → 로그인 화면.
 
 ---
+
+### S6. 일정 화면 (조회·수정)
+1. 일정 탭 진입 → `GET /schedules` (기본: 오늘부터 7일, 최신순) → 목록 렌더.
+2. 등록: `POST /schedules` → 201 응답 객체를 목록에 반영.
+3. 수정: `PATCH /schedules/{id}` → **응답의 새 `scheduleId`로 교체** (기존 id는 죽은 참조).
+4. 삭제: `DELETE /schedules/{id}` → 204 → 목록에서 제거.
+5. 404 수신 시(다른 기기에서 수정/삭제된 경우 등) → 목록 새로고침으로 동기화.
+6. 챗봇("내일 3시 회의 잡아줘")으로 만든 일정도 같은 데이터 — 챗 사용 후 일정 화면 복귀 시 재조회 권장.
 
 ## 4. 로컬 개발용 시드 계정
 - username: `tester`

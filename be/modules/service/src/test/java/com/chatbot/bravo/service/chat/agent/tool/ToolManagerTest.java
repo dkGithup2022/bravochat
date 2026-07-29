@@ -3,6 +3,8 @@ package com.chatbot.bravo.service.chat.agent.tool;
 import com.chatbot.bravo.infrastructure.llm.ToolParamExtractor;
 import com.chatbot.bravo.infrastructure.schedule.repository.ScheduleRepository;
 import com.chatbot.bravo.service.chat.agent.tool.schedule.ScheduleToolHandler;
+import com.chatbot.bravo.service.schedule.ScheduleWriter;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -17,9 +19,11 @@ class ToolManagerTest {
 
     @Mock private ToolParamExtractor paramExtractor;
     @Mock private ScheduleRepository scheduleRepository;
+    @Mock private ScheduleWriter scheduleWriter;
 
     private ToolManager manager() {
-        return new ToolManager(new ScheduleToolHandler(paramExtractor, scheduleRepository));
+        return new ToolManager(new ScheduleToolHandler(
+                paramExtractor, new ObjectMapper(), scheduleRepository, scheduleWriter));
     }
 
     @Test

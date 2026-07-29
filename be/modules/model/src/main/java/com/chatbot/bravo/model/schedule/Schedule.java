@@ -6,8 +6,8 @@ import lombok.Value;
 import java.time.Instant;
 
 /**
- * 유저의 일정. 챗 툴(schedule_add)로만 생성되며 turnId로 생성 출처 턴을 추적한다.
- * 완료 여부는 doneAt으로 판정 (null = 미완료).
+ * 유저의 일정. 챗 툴 또는 일정 API로 생성 — turnId로 생성 출처 턴을 추적한다
+ * (null = API 발 생성). 완료 여부는 doneAt으로 판정 (null = 미완료).
  */
 @Value
 public class Schedule implements AuditFields {

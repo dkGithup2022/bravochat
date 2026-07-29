@@ -41,7 +41,7 @@ class ScheduleToolScenarioTest extends ChatScenarioTestBase {
                 .thenReturn(LlmAction.finalAnswer("내일 15시 회의로 등록해뒀어요!"));
         when(paramExtractor.extract(anyString(), eq(ScheduleParams.class), anyList()))
                 .thenReturn(new ScheduleParams("add", null, "회의", null, "WORK",
-                        "2026-07-28T15:00", null, null));
+                        "2026-07-28T15:00", null, null, null, null, null));
 
         // when
         String bearer = login("user1");
@@ -64,15 +64,58 @@ class ScheduleToolScenarioTest extends ChatScenarioTestBase {
         assertThat(((Number) schedule.get("turn_id")).longValue()).isEqualTo(turnId);
         assertThat(schedule.get("scheduled_at").toString()).startsWith("2026-07-28 06:00");
 
-        // then — 이벤트 4종 순서 + TOOL_CALL/TOOL_RESULT의 tool_call_id 짝
+        // then — 이벤트 5종 순서 + TOOL_CALL/TOOL_PROGRESS/TOOL_RESULT의 tool_call_id 짝
         var events = jdbcTemplate.queryForList(
                 "SELECT type, content, tool_name, tool_call_id FROM turn_events WHERE turn_id = ? ORDER BY id", turnId);
         assertThat(events).extracting(e -> e.get("type"))
-                .containsExactly("USER_MESSAGE", "TOOL_CALL", "TOOL_RESULT", "ASSISTANT_MESSAGE");
+                .containsExactly("USER_MESSAGE", "TOOL_CALL", "TOOL_PROGRESS", "TOOL_RESULT", "ASSISTANT_MESSAGE");
         assertThat(events.get(1).get("tool_name")).isEqualTo("schedule");
         assertThat(events.get(1).get("tool_call_id")).isNotNull()
-                .isEqualTo(events.get(2).get("tool_call_id"));
-        assertThat((String) events.get(2).get("content")).startsWith("schedule.add:");   // turnMemo
+                .isEqualTo(events.get(2).get("tool_call_id"))
+                .isEqualTo(events.get(3).get("tool_call_id"));
+        // TOOL_PROGRESS — 추출 직후의 중간 기록
+        assertThat((String) events.get(2).get("content"))
+                .contains("\"stage\":\"EXTRACT\"")
+                .contains("\"op\":\"add\"");
+        // turnMemo = JSON 래퍼 — 추출 params·성공여부·툴 원본 memo가 함께 기록된다
+        assertThat((String) events.get(3).get("content"))
+                .contains("\"tool\":\"schedule\"")
+                .contains("\"success\":true")
+                .contains("\"op\":\"add\"")
+                .contains("schedule.add:");
+    }
+
+    @Test
+    @DisplayName("[변경 적용] apply_update → 새 row 추가 + 기존 row soft delete (DB 관통)")
+    void should_replaceRowWithSoftDelete_when_applyUpdate() throws Exception {
+        when(llmClient.call(anyString(), anyList()))
+                .thenReturn(LlmAction.toolCall(SCHEDULE_CALL))
+                .thenReturn(LlmAction.finalAnswer("20시로 변경했어요."));
+        when(paramExtractor.extract(anyString(), eq(ScheduleParams.class), anyList()))
+                .thenReturn(new ScheduleParams("apply_update", null, null, null, null,
+                        "2026-07-30T20:00", null, null, "돌돌이 미팅", null, "2026-07-30T19:00"));
+
+        // 기존 일정: KST 7-30 19:00 == UTC 10:00
+        jdbcTemplate.update("""
+                INSERT INTO schedules (user_id, turn_id, title, schedule_type, scheduled_at,
+                                       is_deleted, created_at, updated_at)
+                VALUES (?, 0, '돌돌이 미팅', 'ETC', '2026-07-30 10:00:00', FALSE, NOW(), NOW())""", user1Id);
+
+        String bearer = login("user1");
+        sendMessage(bearer, "ㅇㅇ 그렇게 바꿔줘")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.message").value("20시로 변경했어요."));
+
+        // 기존 row는 soft delete, 새 row는 KST 20:00 == UTC 11:00 미삭제로 존재
+        var rows = jdbcTemplate.queryForList(
+                "SELECT is_deleted, deleted_at, scheduled_at, title FROM schedules WHERE user_id = ? ORDER BY id",
+                user1Id);
+        assertThat(rows).hasSize(2);
+        assertThat(rows.get(0).get("is_deleted")).isEqualTo(true);
+        assertThat(rows.get(0).get("deleted_at")).isNotNull();
+        assertThat(rows.get(1).get("is_deleted")).isEqualTo(false);
+        assertThat(rows.get(1).get("scheduled_at").toString()).startsWith("2026-07-30 11:00");
+        assertThat(rows.get(1).get("title")).isEqualTo("돌돌이 미팅");
     }
 
     @Test
@@ -83,7 +126,7 @@ class ScheduleToolScenarioTest extends ChatScenarioTestBase {
                 .thenReturn(LlmAction.finalAnswer("몇 시로 잡을까요?"));
         when(paramExtractor.extract(anyString(), eq(ScheduleParams.class), anyList()))
                 .thenReturn(new ScheduleParams("missing", "몇 시로 잡을까요?",
-                        null, null, null, null, null, null));
+                        null, null, null, null, null, null, null, null, null));
 
         String bearer = login("user1");
         sendMessage(bearer, "회의 잡아줘")
@@ -96,6 +139,9 @@ class ScheduleToolScenarioTest extends ChatScenarioTestBase {
                 "SELECT id FROM turns WHERE user_id = ? AND status = 'COMPLETED'", Long.class, user1Id);
         String memo = jdbcTemplate.queryForObject(
                 "SELECT content FROM turn_events WHERE turn_id = ? AND type = 'TOOL_RESULT'", String.class, turnId);
-        assertThat(memo).startsWith("FAILED:").contains("몇 시로 잡을까요?");
+        assertThat(memo)
+                .contains("\"success\":false")
+                .contains("\"op\":\"missing\"")
+                .contains("FAILED: 몇 시로 잡을까요?");
     }
 }

@@ -130,8 +130,11 @@ public class DefaultSendMessageUsecase implements SendMessageUsecase {
         turnEventRepository.append(
                 TurnEvent.toolCall(turn.getTurnId(), call.name(), callId, String.valueOf(call.arguments())));
 
+        // 툴이 실행 도중 남기는 중간 정리 결과 → TOOL_PROGRESS로 즉시 저장 (디버깅용)
         ToolResponse response = toolExecutor.execute(
-                call, new ToolContext(userId, turn.getTurnId(), messages));
+                call, new ToolContext(userId, turn.getTurnId(), messages,
+                        content -> turnEventRepository.append(
+                                TurnEvent.toolProgress(turn.getTurnId(), call.name(), callId, content))));
 
         turnEventRepository.append(
                 TurnEvent.toolResult(turn.getTurnId(), callId, response.turnMemo()));

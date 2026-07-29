@@ -12,8 +12,9 @@ import { z } from "zod";
  */
 
 const ProxyRequestSchema = z.object({
-  method: z.enum(["GET", "POST", "PUT", "DELETE"]),
-  path: z.string().startsWith("/"),
+  method: z.enum(["GET", "POST", "PATCH", "DELETE"]),
+  // 계약(specs/api-handoff.md) 엔드포인트 프리픽스만 허용 — "/https://..." 류 절대 URL 주입 차단
+  path: z.string().regex(/^\/(auth|chat|schedules)(\/|$)/),
   body: z.unknown().optional(),
   params: z
     .record(z.string(), z.union([z.string(), z.number(), z.boolean()]))
@@ -52,6 +53,15 @@ export async function POST(request: NextRequest) {
     }
 
     const cleanPath = path.startsWith("/") ? path.substring(1) : path;
+
+    // 이중 방어: 최종 요청 URL 이 BE origin 을 벗어나면 거부 (토큰 유출/SSRF 방지)
+    if (new URL(cleanPath, baseUrl).origin !== new URL(baseUrl).origin) {
+      return NextResponse.json(
+        { error: "Invalid request path", status: 400 },
+        { status: 400 },
+      );
+    }
+
     const incomingAuth = request.headers.get("authorization");
 
     const backendResponse = await backendClient(cleanPath, {
@@ -68,13 +78,15 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // 바디 파싱 (204/빈 응답 대응)
+    // 바디 파싱 (204/빈 응답 대응). text/* 는 문자열 통짜로 릴레이 (디버그 transcript 등)
     let responseData: unknown = null;
     const contentLength = backendResponse.headers.get("content-length");
     const contentType = backendResponse.headers.get("content-type");
     if (contentLength !== "0" && contentType?.includes("application/json")) {
       const text = await backendResponse.text();
       responseData = text ? JSON.parse(text) : null;
+    } else if (contentLength !== "0" && contentType?.includes("text/")) {
+      responseData = await backendResponse.text();
     }
 
     // 로그인 토큰: BE 응답 Authorization 헤더 캡처

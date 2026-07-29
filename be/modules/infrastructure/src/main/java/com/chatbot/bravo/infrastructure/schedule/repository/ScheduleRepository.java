@@ -23,4 +23,11 @@ public interface ScheduleRepository {
      * (scheduleId는 LLM 툴 인자로 들어오는 값 — 소유권 검증을 쿼리 레벨에서 강제)
      */
     Optional<Schedule> findByIdAndUserId(Long scheduleId, Long userId);
+
+    /**
+     * 본인 소유 일정 soft delete (is_deleted=true, deleted_at=now).
+     * 일정 변경은 새 row 추가 + 기존 row soft delete로 처리 — 이 메서드가 후자.
+     * userId를 쿼리 조건에 포함해 소유권 검증. 성공(1행 변경) 시 true.
+     */
+    boolean softDelete(Long scheduleId, Long userId);
 }

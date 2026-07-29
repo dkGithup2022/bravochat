@@ -16,17 +16,15 @@ export const WIDGETS: WidgetDef[] = [
     id: "schedule",
     icon: <Calendar size={20} strokeWidth={1.8} />,
     label: "이번주 일정",
-    meta: "남은 2개",
     prompt: "이번주 일정 보여줘",
   },
   {
     id: "journal",
     icon: <NotebookText size={20} strokeWidth={1.8} />,
     label: "일상 기록",
-    meta: "3개 요약",
     prompt: "일상 기록 보여줘",
   },
   // 미정 자리표시자 (Chat 시안: 점선·회색)
-  { id: "widget1", label: "위젯 1", prompt: "", disabled: true },
-  { id: "widget2", label: "위젯 2", prompt: "", disabled: true },
+  { id: "widget1", label: "준비중", prompt: "", disabled: true },
+  { id: "widget2", label: "준비중", prompt: "", disabled: true },
 ];

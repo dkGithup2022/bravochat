@@ -8,13 +8,10 @@ import { useAuthStore } from "@/store/auth-store";
 
 const API_PROXY_URL = "/api/proxy";
 
+// 재시도는 apiGet 에서 수동 처리 — 프록시 호출은 항상 POST 라 ky 의 method 기반 retry 가 안 통한다.
 const proxyClient = ky.create({
   timeout: 35000,
-  retry: {
-    limit: 2,
-    methods: ["get"],
-    statusCodes: [408, 429, 500, 502, 503, 504],
-  },
+  retry: { limit: 0 },
 });
 
 const EnvelopeSchema = z.object({
@@ -93,12 +90,25 @@ function unwrap<T>(env: ProxyResponse): T {
   return env.data as T;
 }
 
+const RETRYABLE_STATUSES = new Set([0, 408, 429, 500, 502, 503, 504]);
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+/** GET 만 재시도(멱등). POST(/chat/turns) 재시도는 턴 중복 생성 위험이 있어 금지. */
 export async function apiGet<T>(
   path: string,
   params?: Record<string, string | number | boolean>,
   options?: { skipAuth?: boolean },
 ): Promise<T> {
-  return unwrap<T>(await dispatch({ method: "GET", path, params, options }));
+  let env = await dispatch({ method: "GET", path, params, options });
+  for (
+    let attempt = 1;
+    attempt <= 2 && env.error && RETRYABLE_STATUSES.has(env.status);
+    attempt++
+  ) {
+    await sleep(300 * attempt);
+    env = await dispatch({ method: "GET", path, params, options });
+  }
+  return unwrap<T>(env);
 }
 
 export async function apiPost<T>(
@@ -107,6 +117,14 @@ export async function apiPost<T>(
   options?: { skipAuth?: boolean },
 ): Promise<T> {
   return unwrap<T>(await dispatch({ method: "POST", path, body, options }));
+}
+
+export async function apiPatch<T>(
+  path: string,
+  body?: unknown,
+  options?: { skipAuth?: boolean },
+): Promise<T> {
+  return unwrap<T>(await dispatch({ method: "PATCH", path, body, options }));
 }
 
 export async function apiDelete<T>(

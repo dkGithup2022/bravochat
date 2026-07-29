@@ -14,7 +14,7 @@ export function MessageBubble({
   if (who === "user") {
     return (
       <div className="flex w-full justify-end">
-        <div className="max-w-[80%] rounded-[16px_4px_16px_16px] bg-ink px-4 py-[13px] text-[17px] leading-[1.5] text-white">
+        <div className="max-w-[80%] whitespace-pre-line rounded-[16px_4px_16px_16px] bg-ink px-4 py-[13px] text-[17px] leading-[1.5] text-white md:py-[9px] md:text-base">
           {text}
         </div>
       </div>
@@ -24,7 +24,7 @@ export function MessageBubble({
   return (
     <div className="flex w-full items-start gap-[9px]">
       <Avatar />
-      <div className="max-w-[80%] whitespace-pre-line rounded-[4px_16px_16px_16px] border border-line bg-surface px-4 py-[13px] text-[17px] leading-[1.55] text-ink">
+      <div className="max-w-[80%] whitespace-pre-line rounded-[4px_16px_16px_16px] border border-line bg-surface px-4 py-[13px] text-[17px] leading-[1.55] text-ink md:py-[9px] md:text-base">
         {text}
       </div>
     </div>

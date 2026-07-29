@@ -12,6 +12,7 @@ import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.openai.OpenAiChatOptions;
+import org.springframework.ai.openai.api.ResponseFormat;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -25,7 +26,7 @@ import java.util.List;
 @Component
 public class OpenAiToolParamExtractor implements ToolParamExtractor {
 
-    private static final String MODEL = "gpt-4.1-mini";
+    private static final String MODEL = GptModel.FIVE_FOUR_MINI.getModelName();
 
     private static final String SYSTEM_TEMPLATE = """
             당신은 도구 호출 인자 추출기입니다. 아래 스펙에 따라 대화에서 필요한 값을 찾아
@@ -58,6 +59,7 @@ public class OpenAiToolParamExtractor implements ToolParamExtractor {
         OpenAiChatOptions options = OpenAiChatOptions.builder()
                 .model(MODEL)
                 .temperature(0.0)   // 추출은 결정적으로
+                .responseFormat(ResponseFormat.builder().type(ResponseFormat.Type.JSON_OBJECT).build())
                 .build();
 
         String text = chatModel.call(new Prompt(springMessages, options))

@@ -19,7 +19,19 @@ public final class DefaultToolGuidanceContributor implements ToolGuidanceContrib
               요청하세요.
 
             도구가 오류를 반환하거나 결과가 없으면, 추측하지 말고 무엇을 확인했는지 사용자에게
-            알린 뒤 필요한 정보를 요청하세요.""";
+            알린 뒤 필요한 정보를 요청하세요.
+
+            도구가 "확인 필요"를 요청하면 그 내용의 날짜·시각·제목 표기를 바꾸지 말고 그대로
+            유저에게 보여주고 진행 여부를 확인받으세요. (다음 단계가 그 표기를 근거로 동작합니다.)
+
+            도구가 관리하는 데이터(일정 등)에 대한 답변은 반드시 이번 턴의 도구 호출 결과에
+            근거해야 합니다. 도구를 호출하지 않고 내용을 단정하거나 등록/변경을 "했다"고
+            말하지 마세요. 이전 대화에 보이는 정보는 오래된 것일 수 있으므로, 브리핑 전에
+            반드시 조회하세요.
+
+            특히 아래의 두 관련 작업은 유저의 요청 시, 먼저 요청 시점의 실제 데이터를
+            조회한 후에 작업해주세요.
+            - 기록, 일정""";
 
     @Override public String sectionName() { return "tool_guidance"; }
     @Override public Optional<PromptSection> contribute() { return contribute(new TreeSet<>()); }

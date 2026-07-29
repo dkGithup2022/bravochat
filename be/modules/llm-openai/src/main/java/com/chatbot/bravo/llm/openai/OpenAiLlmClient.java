@@ -12,6 +12,7 @@ import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatModel;
 import org.springframework.ai.chat.prompt.Prompt;
 import org.springframework.ai.openai.OpenAiChatOptions;
+import org.springframework.ai.openai.api.ResponseFormat;
 import org.springframework.stereotype.Component;
 
 import java.util.ArrayList;
@@ -26,7 +27,7 @@ import java.util.List;
 @Component
 public class OpenAiLlmClient implements LlmClient {
 
-    private static final String MODEL = "gpt-4.1-mini";
+    private static final String MODEL = GptModel.FIVE_FOUR_MINI.getModelName();
 
     private final ChatModel chatModel;
     private final ObjectMapper objectMapper;
@@ -50,6 +51,8 @@ public class OpenAiLlmClient implements LlmClient {
         OpenAiChatOptions options = OpenAiChatOptions.builder()
                 .model(MODEL)
                 .temperature(1.0)
+                // 프롬프트 지시만으로는 모델이 평문으로 답하는 경우가 있어 API 레벨에서 JSON 출력을 강제
+                .responseFormat(ResponseFormat.builder().type(ResponseFormat.Type.JSON_OBJECT).build())
                 .build();
 
         String text = chatModel.call(new Prompt(springMessages, options))

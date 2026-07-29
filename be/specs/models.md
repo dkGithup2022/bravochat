@@ -43,8 +43,8 @@
 ## schedule (com.chatbot.bravo.model.schedule)
 
 ### Schedule (@Value, AuditFields)
-- 필드: `Long scheduleId`, `Long userId`, `Long turnId`(생성 출처 턴), `String title`, `String content`(nullable), `ScheduleType scheduleType`, `Instant scheduledAt`(UTC), `Instant doneAt`(nullable, null=미완료), createdAt, updatedAt
-- 팩토리: `create(userId, turnId, title, content, scheduleType, scheduledAt)` — 미완료로 생성
+- 필드: `Long scheduleId`, `Long userId`, `Long turnId`(생성 출처 턴, nullable — null=API 발 생성), `String title`, `String content`(nullable), `ScheduleType scheduleType`, `Instant scheduledAt`(UTC), `Instant doneAt`(nullable, null=미완료), createdAt, updatedAt
+- 팩토리: `create(userId, turnId, title, content, scheduleType, scheduledAt)` — 미완료로 생성, turnId null 허용(API 경로)
 - 상태변경: `done()` — doneAt 세팅한 새 인스턴스 / 판정: `isDone()`
 - Read 모델 없음 — 단일 테이블 전량 반환, Schedule이 읽기/쓰기 겸용 (조인 프로젝션 필요 시 분리)
 

@@ -1,5 +1,7 @@
 import type { ProxyRequest, ProxyResponse } from "../types";
 import type { RecentTurn } from "@/types/api/chat";
+import type { Schedule, ScheduleType } from "@/types/api/schedule";
+import { addDays, toKstParts, todayKst } from "@/lib/schedule/format";
 
 /**
  * Bravo 목 핸들러 — BE 계약(specs/api-handoff.md)을 인프로세스로 재현.
@@ -40,6 +42,93 @@ const mockTurns: RecentTurn[] = [
     createdAt: "2026-07-24T04:41:30.000Z",
   },
 ];
+
+// === 목 일정 저장소 (§2-5~2-8) ===
+
+const SCHEDULE_TYPES: ScheduleType[] = ["HEALTH", "PERSONAL", "WORK", "ETC"];
+
+/** 오늘(KST) + offsetDays 의 KST hour:minute → UTC ISO. */
+function kstInstant(offsetDays: number, hour: number, minute = 0): string {
+  const dateKey = addDays(todayKst(), offsetDays);
+  return new Date(
+    `${dateKey}T${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}:00+09:00`,
+  ).toISOString();
+}
+
+let scheduleSeq = 100;
+let mockSchedules: Schedule[] = [
+  {
+    scheduleId: ++scheduleSeq,
+    title: "아침 러닝 5km",
+    content: "한강공원",
+    scheduleType: "HEALTH",
+    scheduledAt: kstInstant(0, 7, 0),
+    done: true,
+  },
+  {
+    scheduleId: ++scheduleSeq,
+    title: "강남 미팅",
+    content: "강남역 2번 출구",
+    scheduleType: "WORK",
+    scheduledAt: kstInstant(0, 15, 0),
+    done: false,
+  },
+  {
+    scheduleId: ++scheduleSeq,
+    title: "공과금 납부",
+    content: null,
+    scheduleType: "PERSONAL",
+    scheduledAt: kstInstant(0, 18, 0),
+    done: false,
+  },
+  {
+    scheduleId: ++scheduleSeq,
+    title: "치과 정기검진",
+    content: "스케일링 예약",
+    scheduleType: "HEALTH",
+    scheduledAt: kstInstant(1, 10, 30),
+    done: false,
+  },
+  {
+    scheduleId: ++scheduleSeq,
+    title: "돌돌이 미팅",
+    content: null,
+    scheduleType: "ETC",
+    scheduledAt: kstInstant(1, 17, 0),
+    done: false,
+  },
+  {
+    scheduleId: ++scheduleSeq,
+    title: "주간 보고서 제출",
+    content: "금요일 오전 마감",
+    scheduleType: "WORK",
+    scheduledAt: kstInstant(2, 11, 0),
+    done: false,
+  },
+  {
+    scheduleId: ++scheduleSeq,
+    title: "이마트 장보기",
+    content: "주말 가족 모임 준비",
+    scheduleType: "PERSONAL",
+    scheduledAt: kstInstant(3, 14, 0),
+    done: false,
+  },
+  {
+    scheduleId: ++scheduleSeq,
+    title: "가족 모임",
+    content: "부모님 댁",
+    scheduleType: "PERSONAL",
+    scheduledAt: kstInstant(4, 12, 0),
+    done: false,
+  },
+];
+
+/** BE ScheduleType.fromOrEtc 재현 — 이외 값/생략은 ETC 흡수. */
+function typeOrEtc(value: unknown): ScheduleType {
+  return SCHEDULE_TYPES.includes(value as ScheduleType)
+    ? (value as ScheduleType)
+    : "ETC";
+}
 
 /** 아주 단순한 목 봇 응답 생성 (plain text). */
 function mockBotReply(message: string): string {
@@ -125,6 +214,120 @@ export async function handleMockRequest<T = unknown>(
     }
     await sleep(300);
     return ok({ turns: mockTurns.slice(-size) }) as ProxyResponse<T>;
+  }
+
+  // GET /chat/turns/transcript → [디버그] 전체 전문 (text/plain 문자열 통짜 흉내)
+  if (key === "GET /chat/turns/transcript") {
+    await sleep(200);
+    if (mockTurns.length === 0) {
+      return ok("(no turns)") as ProxyResponse<T>;
+    }
+    const transcript = mockTurns
+      .map((t) =>
+        [
+          `=== turn ${t.turnId} [COMPLETED] ===`,
+          `${t.createdAt} USER_MESSAGE: ${t.userMessage}`,
+          `${t.createdAt} ASSISTANT_MESSAGE: ${t.assistantMessage}`,
+        ].join("\n"),
+      )
+      .join("\n");
+    return ok(transcript) as ProxyResponse<T>;
+  }
+
+  // GET /schedules?from&to&size → 기간 내 최신순 (§2-5)
+  if (key === "GET /schedules") {
+    const from =
+      typeof params?.from === "string" && params.from ? params.from : todayKst();
+    const to =
+      typeof params?.to === "string" && params.to ? params.to : addDays(from, 6);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)) {
+      return fail(400, "from/to 는 YYYY-MM-DD 형식이어야 합니다") as ProxyResponse<T>;
+    }
+    // size 1~100 밖은 에러가 아니라 서버가 범위로 보정 (§2-5)
+    const size = Math.min(100, Math.max(1, Math.trunc(Number(params?.size ?? 20)) || 20));
+    await sleep(300);
+    const schedules = mockSchedules
+      .filter((s) => {
+        const { dateKey } = toKstParts(s.scheduledAt);
+        return dateKey >= from && dateKey <= to;
+      })
+      .sort((a, b) => b.scheduledAt.localeCompare(a.scheduledAt))
+      .slice(0, size);
+    return ok({ schedules }) as ProxyResponse<T>;
+  }
+
+  // POST /schedules → 201 생성 (§2-6)
+  if (key === "POST /schedules") {
+    const { title, content, scheduleType, scheduledAt } = (body ?? {}) as {
+      title?: string;
+      content?: string | null;
+      scheduleType?: string;
+      scheduledAt?: string;
+    };
+    if (!title || !title.trim()) {
+      return fail(400, "title: 제목은 필수입니다") as ProxyResponse<T>;
+    }
+    if (title.length > 200) {
+      return fail(400, "title: 200자를 초과할 수 없습니다") as ProxyResponse<T>;
+    }
+    if (!scheduledAt) {
+      return fail(400, "scheduledAt: 일정 시각은 필수입니다") as ProxyResponse<T>;
+    }
+    await sleep(300);
+    const created: Schedule = {
+      scheduleId: ++scheduleSeq,
+      title: title.trim(),
+      content: content?.trim() || null,
+      scheduleType: typeOrEtc(scheduleType),
+      scheduledAt,
+      done: false,
+    };
+    mockSchedules.push(created);
+    return ok(created) as ProxyResponse<T>;
+  }
+
+  // PATCH /schedules/{id} → 교체 방식: 새 scheduleId 발급 (§2-7)
+  const patchMatch = path.match(/^\/schedules\/(\d+)$/);
+  if (method === "PATCH" && patchMatch) {
+    const id = Number(patchMatch[1]);
+    const existing = mockSchedules.find((s) => s.scheduleId === id);
+    if (!existing) {
+      return fail(404, "일정을 찾을 수 없습니다") as ProxyResponse<T>;
+    }
+    const { title, content, scheduleType, scheduledAt } = (body ?? {}) as {
+      title?: string;
+      content?: string | null;
+      scheduleType?: string;
+      scheduledAt?: string;
+    };
+    if (title !== undefined && (!title.trim() || title.length > 200)) {
+      return fail(400, "title: 1~200자여야 합니다") as ProxyResponse<T>;
+    }
+    await sleep(300);
+    const replaced: Schedule = {
+      scheduleId: ++scheduleSeq, // 새 row + 기존 삭제 → ID 가 바뀐다
+      title: title !== undefined ? title.trim() : existing.title,
+      content: content !== undefined ? content?.trim() || null : existing.content,
+      scheduleType:
+        scheduleType !== undefined ? typeOrEtc(scheduleType) : existing.scheduleType,
+      scheduledAt: scheduledAt ?? existing.scheduledAt,
+      done: existing.done,
+    };
+    mockSchedules = mockSchedules.filter((s) => s.scheduleId !== id);
+    mockSchedules.push(replaced);
+    return ok(replaced) as ProxyResponse<T>;
+  }
+
+  // DELETE /schedules/{id} → 204 (§2-8)
+  const deleteMatch = path.match(/^\/schedules\/(\d+)$/);
+  if (method === "DELETE" && deleteMatch) {
+    const id = Number(deleteMatch[1]);
+    if (!mockSchedules.some((s) => s.scheduleId === id)) {
+      return fail(404, "일정을 찾을 수 없습니다") as ProxyResponse<T>;
+    }
+    await sleep(200);
+    mockSchedules = mockSchedules.filter((s) => s.scheduleId !== id);
+    return ok(null) as ProxyResponse<T>;
   }
 
   return fail(404, `Mock 미구현 엔드포인트: ${key}`) as ProxyResponse<T>;

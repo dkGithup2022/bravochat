@@ -1,10 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
-/** persist 스토어 하이드레이션 완료 여부. SSR/CSR 불일치 방지. */
+const emptySubscribe = () => () => {};
+
+/** persist 스토어 하이드레이션 완료 여부. SSR/CSR 불일치 방지 — 서버 false, 클라이언트 true. */
 export function useHydrated(): boolean {
-  const [hydrated, setHydrated] = useState(false);
-  useEffect(() => setHydrated(true), []);
-  return hydrated;
+  return useSyncExternalStore(
+    emptySubscribe,
+    () => true,
+    () => false,
+  );
 }

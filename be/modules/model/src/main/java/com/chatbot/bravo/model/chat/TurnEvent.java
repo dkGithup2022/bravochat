@@ -38,6 +38,12 @@ public class TurnEvent implements AuditFields {
         return new TurnEvent(null, turnId, TurnEventType.TOOL_CALL, content, toolName, toolCallId, now, now);
     }
 
+    /** 툴 실행 중간 기록(디버깅용). 대응 TOOL_CALL과 동일 toolCallId, content=중간 정리 결과. */
+    public static TurnEvent toolProgress(Long turnId, String toolName, String toolCallId, String content) {
+        Instant now = Instant.now();
+        return new TurnEvent(null, turnId, TurnEventType.TOOL_PROGRESS, content, toolName, toolCallId, now, now);
+    }
+
     /** 툴 실행 결과. 대응 TOOL_CALL과 동일 toolCallId, content=결과(JSON). */
     public static TurnEvent toolResult(Long turnId, String toolCallId, String content) {
         Instant now = Instant.now();

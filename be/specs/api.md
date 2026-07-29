@@ -35,3 +35,25 @@
 ## 공통 예외 핸들링
 - `GlobalExceptionHandler`(be-init 소유): DomainException→상태코드 매핑, Bean Validation→400, 그 외→500
 - `WebRequestExceptionHandler`(@Order(0), api-application): Spring MVC 바인딩 실패(필수 파라미터 누락/타입불일치/잘못된 바디)→400
+
+## schedule (com.chatbot.bravo.api.schedule, ScheduleApiController)
+
+### GET /schedules
+- 인증 필요. Query: `from?`/`to?`(YYYY-MM-DD, to 포함, 생략 시 오늘 KST~+7일), `size?`(default 20, 1~100 클램프)
+- 응답 200: `SchedulesResponse{schedules:[{scheduleId,title,content,scheduleType,scheduledAt(UTC),done}]}` — scheduled_at 역순(최신순)
+- usecase: `ScheduleReader.readInPeriod`
+
+### POST /schedules
+- 인증 필요. Request: `CreateScheduleRequest{title(@NotBlank,≤200), content?, scheduleType?(미스매치 ETC 흡수), scheduledAt(@NotNull, Instant)}`
+- 응답 201: `ScheduleResponse` — turn_id null(API 발 생성)
+- usecase: `ScheduleWriter.create`
+
+### PATCH /schedules/{scheduleId}
+- 인증 필요. Request: `UpdateScheduleRequest` — 전 필드 optional, 온 필드만 변경
+- 교체 방식(새 row + 기존 soft delete) — **응답의 scheduleId가 바뀜**
+- 응답 200: `ScheduleResponse` / 404: 없는·타 유저 일정 (`ScheduleNotFoundException`, 존재 은닉)
+- usecase: `ScheduleWriter.replaceById`
+
+### DELETE /schedules/{scheduleId}
+- 인증 필요. 응답 204 / 404: 없는·타 유저 일정
+- usecase: `ScheduleWriter.delete`

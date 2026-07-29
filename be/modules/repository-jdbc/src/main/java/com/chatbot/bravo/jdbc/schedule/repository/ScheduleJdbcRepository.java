@@ -35,4 +35,9 @@ class ScheduleJdbcRepository implements ScheduleRepository {
         return entityRepository.findByIdAndUserIdAndIsDeletedFalse(scheduleId, userId)
                 .map(ScheduleEntity::toDomain);
     }
+
+    @Override
+    public boolean softDelete(Long scheduleId, Long userId) {
+        return entityRepository.softDeleteByIdAndUserId(scheduleId, userId, Instant.now());
+    }
 }

@@ -9,6 +9,8 @@ dependencies {
 
     implementation("org.springframework.boot:spring-boot-starter")
     implementation("org.springframework:spring-tx")
+    // 툴 turnMemo 구조화 기록(JSON 래핑)용 — 버전은 Boot BOM이 관리
+    implementation("com.fasterxml.jackson.core:jackson-databind")
     // BCrypt 해시용 단일 모듈 — Spring Security 전체(필터체인/자동설정)가 아님
     implementation("org.springframework.security:spring-security-crypto")
 

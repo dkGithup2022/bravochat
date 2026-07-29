@@ -61,12 +61,12 @@ CREATE INDEX IF NOT EXISTS idx_turn_events_turn_type ON turn_events(turn_id, typ
 CREATE INDEX IF NOT EXISTS idx_turn_events_tool_call ON turn_events(tool_call_id);
 
 -- === Schedule ===
--- 챗 툴(schedule_add)로만 생성 — turn_id 로 생성 출처 턴 추적.
+-- 챗 툴 또는 일정 API로 생성 — turn_id 로 생성 출처 턴 추적 (NULL = API 발 생성).
 -- done_at NULL = 미완료 (별도 boolean 없음)
 CREATE TABLE IF NOT EXISTS schedules (
     id            BIGINT AUTO_INCREMENT PRIMARY KEY,
     user_id       BIGINT       NOT NULL,
-    turn_id       BIGINT       NOT NULL,
+    turn_id       BIGINT,
     title         VARCHAR(200) NOT NULL,
     content       TEXT,
     schedule_type VARCHAR(20)  NOT NULL,
@@ -77,4 +77,6 @@ CREATE TABLE IF NOT EXISTS schedules (
     created_at    DATETIME(6)  NOT NULL,
     updated_at    DATETIME(6)  NOT NULL
 );
+-- 기존 로컬 DB 마이그레이션 — 이미 nullable이면 no-op (idempotent)
+ALTER TABLE schedules ALTER COLUMN turn_id SET NULL;
 CREATE INDEX IF NOT EXISTS idx_schedules_user_scheduled ON schedules(user_id, scheduled_at);

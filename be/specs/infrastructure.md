@@ -36,3 +36,4 @@
 - `Schedule save(Schedule)` — 신규 생성(id=null) + 상태변경(done) 공용
 - `List<Schedule> findAllByUserIdInPeriod(Long userId, Instant from, Instant to)` — scheduled_at ASC, [from, to) 범위. from/to 필수(기본값 해석은 호출자). limit 없음 — 노출 제한은 호출자가
 - `Optional<Schedule> findByIdAndUserId(Long scheduleId, Long userId)` — userId 스코프 단건. LLM 툴 인자 scheduleId의 소유권 검증을 쿼리 레벨에서 강제
+- `boolean softDelete(Long scheduleId, Long userId)` — soft delete(is_deleted=true, deleted_at=now). userId 조건으로 소유권 강제, 1행 변경 시 true. 일정 변경(새 row + 기존 soft delete 교체)과 삭제가 사용
