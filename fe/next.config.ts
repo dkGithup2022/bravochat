@@ -4,6 +4,7 @@ import type { NextConfig } from "next";
 import "./src/env.mjs";
 
 const nextConfig: NextConfig = {
+  output: "standalone",
   experimental: {
     optimizePackageImports: ["lucide-react"],
   },

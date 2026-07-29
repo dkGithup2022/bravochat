@@ -4,3 +4,12 @@
 # IntelliJ IDEA / JetBrains
 .idea/
 *.iml
+
+# k8s 시크릿 틀 — 실제 값이 채워지므로 커밋 금지
+temp_k8s/
+
+# 로컬 H2 DB / 런타임 데이터
+data/
+
+# playwright mcp 산출물 (스크린샷 등)
+fe/.playwright-mcp/

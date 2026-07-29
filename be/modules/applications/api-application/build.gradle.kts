@@ -18,6 +18,8 @@ dependencies {
     implementation("org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0")
 
     runtimeOnly("com.h2database:h2")
+    // prod 프로파일용 MySQL 드라이버 — 버전은 Boot BOM이 관리
+    runtimeOnly("com.mysql:mysql-connector-j")
 }
 
 application {

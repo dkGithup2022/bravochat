@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chatbot-bravo
+  namespace: chatbot-bravo-prod
+  labels:
+    app: chatbot-bravo
+    environment: production
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: chatbot-bravo
+  template:
+    metadata:
+      labels:
+        app: chatbot-bravo
+        environment: production
+    spec:
+      containers:
+        - name: chatbot-bravo
+          image: searchkim/bravo-chat-demo:prod
+          imagePullPolicy: Always
+          ports:
+            # fe (외부 진입점)
+            - containerPort: 3000
+              protocol: TCP
+            # be (컨테이너 내부에서 fe 프록시가 호출 — Service로는 노출하지 않음)
+            - containerPort: 8080
+              protocol: TCP
+          env:
+            - name: NODE_ENV
+              value: "production"
+            - name: PORT
+              value: "3000"
+            # fe BFF 프록시 → 같은 컨테이너의 be
+            - name: BACKEND_API_URL
+              value: "http://127.0.0.1:8080"
+            # be: 외부 MySQL 프로파일
+            - name: SPRING_PROFILES_ACTIVE
+              value: "prod"
+            # Database
+            - name: SPRING_DATASOURCE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: chatbot-bravo-prod-env
+                  key: SPRING_DATASOURCE_URL
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: chatbot-bravo-prod-env
+                  key: SPRING_DATASOURCE_USERNAME
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: chatbot-bravo-prod-env
+                  key: SPRING_DATASOURCE_PASSWORD
+            # OpenAI
+            - name: OPENAI_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: chatbot-bravo-prod-env
+                  key: OPENAI_KEY
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 3000
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1024Mi
+            limits:
+              cpu: "1500m"
+              memory: 2048Mi
+      imagePullSecrets:
+        - name: dockerhubsecret

@@ -1,0 +1,19 @@
+# 빌드 산출물/로컬 상태는 컨텍스트에서 제외 — 이미지 안에서 새로 빌드한다
+be/build
+be/**/build
+be/.gradle
+fe/node_modules
+fe/.next
+fe/tsconfig.tsbuildinfo
+
+# 로컬 데이터/문서/기타
+data
+node_modules
+.git
+.github
+argocd
+design_and_idea
+*.md
+*.png
+.idea
+*.iml

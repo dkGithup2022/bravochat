@@ -1,0 +1,12 @@
+# Production Profile: MySQL (외부 DB)
+# 스키마/시드는 자동 실행하지 않는다 — DDL 은 schema/prod_mysql/schema.sql 을 DB 에 수동 적용,
+# 유저는 운영자가 직접 INSERT (BCrypt 해시).
+spring:
+  datasource:
+    url: ${SPRING_DATASOURCE_URL}
+    username: ${SPRING_DATASOURCE_USERNAME}
+    password: ${SPRING_DATASOURCE_PASSWORD}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  sql:
+    init:
+      mode: never
