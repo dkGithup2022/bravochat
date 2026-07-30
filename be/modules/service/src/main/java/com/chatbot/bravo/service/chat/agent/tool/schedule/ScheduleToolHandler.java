@@ -48,7 +48,8 @@ public class ScheduleToolHandler extends AbstractToolHandler<ScheduleParams> {
 
             - 일정 등록 요청이면: {"op":"add","title":"<제목>","scheduledAt":"YYYY-MM-DDTHH:mm",
               "scheduleType":"HEALTH|PERSONAL|WORK|ETC","content":"<상세, 없으면 생략>"}
-              * scheduledAt은 한국시간(Asia/Seoul) 기준. 시각 언급이 없으면 op=missing으로.
+              * scheduledAt은 한국시간(Asia/Seoul) 기준. 시각 언급이 없으면 00:00으로 등록
+                (예: "내일 등록해줘" → 내일 00:00). 날짜조차 알 수 없을 때만 op=missing으로.
             - 일정 조회 요청이면: {"op":"list","from":"YYYY-MM-DD","to":"YYYY-MM-DD"}
               * to는 포함(inclusive) — 그 날짜의 일정까지 조회된다. 하루 조회면 from=to.
               * 기간 언급이 없으면 from/to 생략 (기본: 오늘부터 7일).

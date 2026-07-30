@@ -62,10 +62,12 @@ public class OpenAiToolParamExtractor implements ToolParamExtractor {
                 .responseFormat(ResponseFormat.builder().type(ResponseFormat.Type.JSON_OBJECT).build())
                 .build();
 
+        log.info("[OpenAI] 파라미터 추출 요청 전문 (type={}):\n{}",
+                type.getSimpleName(), PromptLog.render(springMessages));
+
         String text = chatModel.call(new Prompt(springMessages, options))
                 .getResult().getOutput().getText();
-        log.info("[OpenAI] 파라미터 추출 응답: type={}, length={}",
-                type.getSimpleName(), text == null ? 0 : text.length());
+        log.info("[OpenAI] 파라미터 추출 응답 전문 (type={}):\n{}", type.getSimpleName(), text);
 
         try {
             return mapper.readValue(CleanJson.cleanJsonString(text), type);

@@ -55,9 +55,11 @@ public class OpenAiLlmClient implements LlmClient {
                 .responseFormat(ResponseFormat.builder().type(ResponseFormat.Type.JSON_OBJECT).build())
                 .build();
 
+        log.info("[OpenAI] 툴 루프 요청 전문:\n{}", PromptLog.render(springMessages));
+
         String text = chatModel.call(new Prompt(springMessages, options))
                 .getResult().getOutput().getText();
-        log.info("[OpenAI] 응답 수신: length={}", text == null ? 0 : text.length());
+        log.info("[OpenAI] 툴 루프 응답 전문:\n{}", text);
 
         return parse(text);
     }
